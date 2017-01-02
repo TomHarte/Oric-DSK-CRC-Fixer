@@ -13,6 +13,17 @@
 
 #include "crcgenerator.h"
 
+static const size_t MFMDISK_track_length = 6250;
+
+static void seed_crc_generator(CRCGenerator *generator, uint32_t value)
+{
+	crc_reset_to_value(generator, 0xffff);
+	crc_add_byte(generator, value >> 24);
+	crc_add_byte(generator, (value >> 16)&0xff);
+	crc_add_byte(generator, (value >> 8)&0xff);
+	crc_add_byte(generator, value&0xff);
+}
+
 int main(int argc, const char * argv[]) {
 	// Sanity check 1: did the user provide any arguments?
 	if(argc < 2)
@@ -56,14 +67,81 @@ int main(int argc, const char * argv[]) {
 
 	// Seed the file position.
 	long file_offset = 256;
+	fseek(dsk, file_offset, SEEK_SET);
 	while(1)
 	{
 		// Attempt to read in the existing track; if we hit feof then that's the end of that, done.
-		fseek(dsk, file_offset, SEEK_SET);
-		uint8_t track_image[6250];
+		uint8_t track_image[MFMDISK_track_length];
+		int crcs_fixed_prior_to_track = crcs_fixed;
+
 		fread(track_image, sizeof(track_image[0]), sizeof(track_image), dsk);
 		if(feof(dsk)) break;
 
+		// Perform parsing to look for sectors.
+		size_t track_pointer = 0;
+		uint32_t byte_shift_register = 0;
+		uint8_t most_recent_id_mark[4];
+		while(track_pointer < MFMDISK_track_length)
+		{
+			byte_shift_register = (byte_shift_register << 8) | track_image[track_pointer];
+			track_pointer++;
+
+			if(byte_shift_register == 0xa1a1a1fe && track_pointer < MFMDISK_track_length - 6)
+			{
+				// Update metric.
+				crcs_found++;
+
+				// Parse an ID mark.
+				memcpy(most_recent_id_mark, &track_image[track_pointer], sizeof(most_recent_id_mark));
+				uint16_t intended_crc = (track_image[track_pointer+4] << 8) | track_image[track_pointer+5];
+
+				seed_crc_generator(generator, byte_shift_register);
+				for(int c = 0; c < sizeof(most_recent_id_mark); c++) crc_add_byte(generator, most_recent_id_mark[c]);
+
+				if(intended_crc != crc_get_value(generator))
+				{
+					// Update metric and CRC.
+					crcs_fixed++;
+					track_image[track_pointer+4] = (intended_crc >> 8);
+					track_image[track_pointer+5] = intended_crc & 0xff;
+				}
+
+				track_pointer += 6;
+			}
+			else if(byte_shift_register == 0xa1a1a1fb && track_pointer < MFMDISK_track_length - (128 << most_recent_id_mark[3]))
+			{
+				// Update metric, seed CRC.
+				crcs_found++;
+				seed_crc_generator(generator, byte_shift_register);
+
+				// Parse a sector, per the most recent ID mark.
+				for(int c = 0; c < 128 << most_recent_id_mark[3]; c++)
+				{
+					crc_add_byte(generator, track_image[track_pointer]);
+					track_pointer++;
+				}
+
+				uint16_t intended_crc = (track_image[track_pointer] << 8) | track_image[track_pointer+1];
+				if(intended_crc != crc_get_value(generator))
+				{
+					// Update metric and CRC.
+					crcs_fixed++;
+					track_image[track_pointer] = (intended_crc >> 8);
+					track_image[track_pointer+1] = intended_crc & 0xff;
+				}
+
+				track_pointer += 2;
+			}
+		}
+
+		// Write back if needed
+		if(crcs_fixed_prior_to_track != crcs_fixed)
+		{
+			fseek(dsk, file_offset, SEEK_SET);
+			fwrite(track_image, sizeof(track_image[0]), sizeof(track_image), dsk);
+		}
+
+		// Update metric and file position.
 		tracks_processed++;
 		file_offset += 6400;
 	}
