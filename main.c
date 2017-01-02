@@ -93,17 +93,19 @@ int main(int argc, const char * argv[]) {
 
 				// Parse an ID mark.
 				memcpy(most_recent_id_mark, &track_image[track_pointer], sizeof(most_recent_id_mark));
-				uint16_t intended_crc = (track_image[track_pointer+4] << 8) | track_image[track_pointer+5];
 
 				seed_crc_generator(generator, byte_shift_register);
 				for(int c = 0; c < sizeof(most_recent_id_mark); c++) crc_add_byte(generator, most_recent_id_mark[c]);
 
-				if(intended_crc != crc_get_value(generator))
+				uint16_t found_crc = (track_image[track_pointer+4] << 8) | track_image[track_pointer+5];
+				uint16_t intended_crc = crc_get_value(generator);
+				if(intended_crc != found_crc)
 				{
 					// Update metric and CRC.
 					crcs_fixed++;
 					track_image[track_pointer+4] = (intended_crc >> 8);
 					track_image[track_pointer+5] = intended_crc & 0xff;
+					printf("Correcting CRC for ID mark for sector %d, track %d, side %d\n", most_recent_id_mark[2], most_recent_id_mark[0], most_recent_id_mark[1]);
 				}
 
 				track_pointer += 6;
@@ -121,13 +123,15 @@ int main(int argc, const char * argv[]) {
 					track_pointer++;
 				}
 
-				uint16_t intended_crc = (track_image[track_pointer] << 8) | track_image[track_pointer+1];
-				if(intended_crc != crc_get_value(generator))
+				uint16_t found_crc = (track_image[track_pointer] << 8) | track_image[track_pointer+1];
+				uint16_t intended_crc = crc_get_value(generator);
+				if(intended_crc != found_crc)
 				{
 					// Update metric and CRC.
 					crcs_fixed++;
 					track_image[track_pointer] = (intended_crc >> 8);
 					track_image[track_pointer+1] = intended_crc & 0xff;
+					printf("Correcting CRC for data following ID mark for sector %d, track %d, side %d\n", most_recent_id_mark[2], most_recent_id_mark[0], most_recent_id_mark[1]);
 				}
 
 				track_pointer += 2;
