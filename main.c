@@ -176,7 +176,7 @@ int main(int argc, const char *argv[]) {
 				}
 			}
 
-			// Write back if needed
+			// Write back if needed.
 			if(crcs_fixed_prior_to_track != crcs_fixed)
 			{
 				fseek(dsk, -MFMDISK_track_length, SEEK_CUR);
