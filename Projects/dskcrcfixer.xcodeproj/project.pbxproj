@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4BDE3F4E1E1AAB6A0065B75C /* crcgenerator.c in Sources */ = {isa = PBXBuildFile; fileRef = 4BDE3F4C1E1AAB6A0065B75C /* crcgenerator.c */; };
 		4BE4904D1E1AA78D00668983 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 4BE4904C1E1AA78D00668983 /* main.c */; };
 /* End PBXBuildFile section */
 
@@ -23,6 +24,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		4BDE3F4C1E1AAB6A0065B75C /* crcgenerator.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = crcgenerator.c; sourceTree = "<group>"; };
+		4BDE3F4D1E1AAB6A0065B75C /* crcgenerator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = crcgenerator.h; sourceTree = "<group>"; };
 		4BE490401E1AA6C200668983 /* dskcrcfixer */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = dskcrcfixer; sourceTree = BUILT_PRODUCTS_DIR; };
 		4BE4904C1E1AA78D00668983 /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = main.c; path = ../main.c; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
@@ -58,6 +61,8 @@
 			isa = PBXGroup;
 			children = (
 				4BE4904C1E1AA78D00668983 /* main.c */,
+				4BDE3F4C1E1AAB6A0065B75C /* crcgenerator.c */,
+				4BDE3F4D1E1AAB6A0065B75C /* crcgenerator.h */,
 			);
 			name = dskcrcfixer;
 			path = ..;
@@ -120,6 +125,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4BDE3F4E1E1AAB6A0065B75C /* crcgenerator.c in Sources */,
 				4BE4904D1E1AA78D00668983 /* main.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
