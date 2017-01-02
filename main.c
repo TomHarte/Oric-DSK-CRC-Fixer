@@ -13,12 +13,50 @@
 
 #include "crcgenerator.h"
 
-static const size_t MFMDISK_track_length = 6250;
-static const size_t MFMDISK_offset_of_first_track = 256;
+/*
+	Quick introduction to the Oric MFM_DISK file format:
 
+	It opens with a 256-byte header, the first eight of which are the ASCII values for MFM_DISK.
+	That's followed by a 32-bit little endian head count, then a 32-bit little endian track count,
+	then a 32-bit little endian geometry type; either '1' that all the tracks for one side are listed
+	contiguously, then all the tracks for the next, etc, or '2' to indicate that all the tracks for one
+	head position are listed contiguously ordered by side, then all the tracks for the next head
+	position, etc.
+
+	For this tool's purposes, merely confirming that the MFM_DISK signature matches is sufficient. It'll
+	then just run for as many tracks as there are, in whatever order they come.
+
+	After the 256-byte header, each track occupies 6400 bytes. The first 6250 of those are defined to be
+	the track contents.
+
+	The file format does not include clock bits and guarantees that things intended logically to form
+	bytes on the disk surface will be byte-aligned in the file.
+
+	It is not explicit in disambiguating MFM sync words from properly encoded variants but the designer
+	advocates that a controller-esque parsing be used, treating those A1 and C2 bytes not within sector
+	bodies as the MFM sync words. This code assumes the converse logic to be implicit: those A1 and C2
+	bytes that are within sector bodies are not MFM sync words. 
+*/
+
+static const size_t MFMDISK_track_length = 6250;
+static const size_t MFMDISK_distance_between_tracks = 150;
+static const size_t MFMDISK_offset_of_first_track = 256;
+static const char MFMDISK_expected_signature[] = "MFM_DISK";
+
+static const uint16_t CRC_polynomial = 0x1021;
+static const uint16_t CRC_reload_value = 0xffff;
+
+/*!
+	Rsets the CRC generator to @c CRC_reload_value and feeds it the four bytes in @c value
+	in descending order of significance — most significant byte first, then second-most,
+	etc.
+	
+	@param generator the CRC generator to seed.
+	@param value the four bytes to feed the CRC generator after resetting it to @c CRC_reload_value.
+*/
 static void seed_crc_generator(CRCGenerator *generator, uint32_t value)
 {
-	crc_reset_to_value(generator, 0xffff);
+	crc_reset_to_value(generator, CRC_reload_value);
 	crc_add_byte(generator, value >> 24);
 	crc_add_byte(generator, (value >> 16)&0xff);
 	crc_add_byte(generator, (value >> 8)&0xff);
@@ -36,7 +74,7 @@ int main(int argc, const char * argv[]) {
 	}
 
 	// Obtain a CRC generator.
-	CRCGenerator *generator = crc_create(0x1021);
+	CRCGenerator *generator = crc_create(CRC_polynomial);
 
 	// Act upon every file presented.
 	for(int argument = 1; argument < argc; argument++)
@@ -50,10 +88,9 @@ int main(int argc, const char * argv[]) {
 		}
 
 		// Sanity check 3: does the file, now opened, contain the proper magic word?
-		char magic_word[8];
-		const char expected_word[] = "MFM_DISK";
-		fread(magic_word, sizeof(magic_word[0]), sizeof(magic_word), dsk);
-		if(memcmp(magic_word, expected_word, strlen(expected_word)))
+		char signature[8];
+		fread(signature, sizeof(signature[0]), sizeof(signature), dsk);
+		if(memcmp(MFMDISK_expected_signature, MFMDISK_expected_signature, strlen(MFMDISK_expected_signature)))
 		{
 			fclose(dsk);
 			printf("%s: Error: doesn't look like an Oric MFM disk\n", argv[argument]);
@@ -77,8 +114,8 @@ int main(int argc, const char * argv[]) {
 			uint8_t track_image[MFMDISK_track_length];
 			int crcs_fixed_prior_to_track = crcs_fixed;
 
-			fread(track_image, sizeof(track_image[0]), sizeof(track_image), dsk);
-			if(feof(dsk)) break;
+			size_t bytes_read = fread(track_image, sizeof(track_image[0]), sizeof(track_image), dsk);
+			if(bytes_read != sizeof(track_image)) break;
 
 			// Perform parsing to look for sectors.
 			size_t track_pointer = 0;
@@ -147,6 +184,7 @@ int main(int argc, const char * argv[]) {
 			}
 
 			// Update metric and file position.
+			fseek(dsk, MFMDISK_distance_between_tracks, SEEK_CUR);
 			tracks_processed++;
 		}
 
