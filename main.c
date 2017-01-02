@@ -90,7 +90,7 @@ int main(int argc, const char *argv[]) {
 		// Sanity check 3: does the file, now opened, contain the proper magic word?
 		char signature[8];
 		size_t length = fread(signature, sizeof(signature[0]), sizeof(signature), dsk);
-		if(length != strlen(MFMDISK_expected_signature) || memcmp(MFMDISK_expected_signature, MFMDISK_expected_signature, strlen(MFMDISK_expected_signature)))
+		if(length != strlen(MFMDISK_expected_signature) || memcmp(signature, MFMDISK_expected_signature, strlen(MFMDISK_expected_signature)))
 		{
 			fclose(dsk);
 			printf("%s: Error; doesn't look like an Oric MFM disk\n", argv[argument]);
