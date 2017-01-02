@@ -83,17 +83,17 @@ int main(int argc, const char *argv[]) {
 		FILE *const dsk = fopen(argv[argument], "r+");
 		if(!dsk)
 		{
-			printf("%s: Error: couldn't open for modification\n", argv[argument]);
+			printf("%s: Error; couldn't open for modification\n", argv[argument]);
 			continue;
 		}
 
 		// Sanity check 3: does the file, now opened, contain the proper magic word?
 		char signature[8];
-		fread(signature, sizeof(signature[0]), sizeof(signature), dsk);
-		if(memcmp(MFMDISK_expected_signature, MFMDISK_expected_signature, strlen(MFMDISK_expected_signature)))
+		size_t length = fread(signature, sizeof(signature[0]), sizeof(signature), dsk);
+		if(length != strlen(MFMDISK_expected_signature) || memcmp(MFMDISK_expected_signature, MFMDISK_expected_signature, strlen(MFMDISK_expected_signature)))
 		{
 			fclose(dsk);
-			printf("%s: Error: doesn't look like an Oric MFM disk\n", argv[argument]);
+			printf("%s: Error; doesn't look like an Oric MFM disk\n", argv[argument]);
 			continue;
 		}
 
