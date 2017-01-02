@@ -108,7 +108,6 @@ int main(int argc, const char * argv[]) {
 						crcs_fixed++;
 						track_image[track_pointer+4] = (intended_crc >> 8);
 						track_image[track_pointer+5] = intended_crc & 0xff;
-//						printf("Correcting CRC for ID mark for sector %d, track %d, side %d\n", most_recent_id_mark[2], most_recent_id_mark[0], most_recent_id_mark[1]);
 					}
 
 					track_pointer += 6;
