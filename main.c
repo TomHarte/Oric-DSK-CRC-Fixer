@@ -35,7 +35,7 @@
 	It is not explicit in disambiguating MFM sync words from properly encoded variants but the designer
 	advocates that a controller-esque parsing be used, treating those A1 and C2 bytes not within sector
 	bodies as the MFM sync words. This code assumes the converse logic to be implicit: those A1 and C2
-	bytes that are within sector bodies are not MFM sync words. 
+	bytes that are within sector bodies are not MFM sync words.
 */
 
 static const size_t MFMDISK_track_length = 6250;
@@ -63,7 +63,7 @@ static void seed_crc_generator(CRCGenerator *generator, uint32_t value)
 	crc_add_byte(generator, value&0xff);
 }
 
-int main(int argc, const char * argv[]) {
+int main(int argc, const char *argv[]) {
 	// Sanity check 1: did the user provide any arguments?
 	if(argc < 2)
 	{
@@ -74,13 +74,13 @@ int main(int argc, const char * argv[]) {
 	}
 
 	// Obtain a CRC generator.
-	CRCGenerator *generator = crc_create(CRC_polynomial);
+	CRCGenerator *const generator = crc_create(CRC_polynomial);
 
 	// Act upon every file presented.
 	for(int argument = 1; argument < argc; argument++)
 	{
 		// Sanity check 2: does the first argument identify a file that can be opened for modification?
-		FILE *dsk = fopen(argv[argument], "r+");
+		FILE *const dsk = fopen(argv[argument], "r+");
 		if(!dsk)
 		{
 			printf("%s: Error: couldn't open for modification\n", argv[argument]);
@@ -112,9 +112,9 @@ int main(int argc, const char * argv[]) {
 		{
 			// Attempt to read in the existing track; if we hit feof then that's the end of that, done.
 			uint8_t track_image[MFMDISK_track_length];
-			int crcs_fixed_prior_to_track = crcs_fixed;
+			const int crcs_fixed_prior_to_track = crcs_fixed;
 
-			size_t bytes_read = fread(track_image, sizeof(track_image[0]), sizeof(track_image), dsk);
+			const size_t bytes_read = fread(track_image, sizeof(track_image[0]), sizeof(track_image), dsk);
 			if(bytes_read != sizeof(track_image)) break;
 
 			// Perform parsing to look for sectors.
@@ -137,8 +137,8 @@ int main(int argc, const char * argv[]) {
 					seed_crc_generator(generator, byte_shift_register);
 					for(int c = 0; c < sizeof(most_recent_id_mark); c++) crc_add_byte(generator, most_recent_id_mark[c]);
 
-					uint16_t found_crc = (track_image[track_pointer+4] << 8) | track_image[track_pointer+5];
-					uint16_t intended_crc = crc_get_value(generator);
+					const uint16_t found_crc = (track_image[track_pointer+4] << 8) | track_image[track_pointer+5];
+					const uint16_t intended_crc = crc_get_value(generator);
 					if(intended_crc != found_crc)
 					{
 						// Update metric and CRC.
@@ -162,8 +162,8 @@ int main(int argc, const char * argv[]) {
 						track_pointer++;
 					}
 
-					uint16_t found_crc = (track_image[track_pointer] << 8) | track_image[track_pointer+1];
-					uint16_t intended_crc = crc_get_value(generator);
+					const uint16_t found_crc = (track_image[track_pointer] << 8) | track_image[track_pointer+1];
+					const uint16_t intended_crc = crc_get_value(generator);
 					if(intended_crc != found_crc)
 					{
 						// Update metric and CRC.

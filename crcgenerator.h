@@ -51,6 +51,6 @@ void crc_add_byte(CRCGenerator *generator, uint8_t byte);
 /*!
 	@returns the current value of @c generator.
 */
-uint16_t crc_get_value(CRCGenerator *generator);
+uint16_t crc_get_value(const CRCGenerator *generator);
 
 #endif /* crcgenerator_h */

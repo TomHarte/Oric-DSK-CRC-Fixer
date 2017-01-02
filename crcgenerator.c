@@ -15,9 +15,9 @@ struct CRCGeneratorInternal {
 	uint16_t value;
 };
 
-CRCGenerator *crc_create(uint16_t polynomial)
+CRCGenerator *crc_create(const uint16_t polynomial)
 {
-	struct CRCGeneratorInternal *generator = (struct CRCGeneratorInternal *)malloc(sizeof(struct CRCGeneratorInternal));
+	struct CRCGeneratorInternal *const generator = (struct CRCGeneratorInternal *)malloc(sizeof(struct CRCGeneratorInternal));
 
 	generator->value = 0xffff;
 	for(int c = 0; c < 256; c++)
@@ -25,7 +25,7 @@ CRCGenerator *crc_create(uint16_t polynomial)
 		uint16_t shift_value = (uint16_t)(c << 8);
 		for(int b = 0; b < 8; b++)
 		{
-			uint16_t exclusive_or = (shift_value&0x8000) ? polynomial : 0x0000;
+			const uint16_t exclusive_or = (shift_value&0x8000) ? polynomial : 0x0000;
 			shift_value = (uint16_t)(shift_value << 1) ^ exclusive_or;
 		}
 		generator->xor_table[c] = shift_value;
@@ -34,25 +34,25 @@ CRCGenerator *crc_create(uint16_t polynomial)
 	return generator;
 }
 
-void crc_destroy(CRCGenerator *generator)
+void crc_destroy(CRCGenerator *const generator)
 {
 	free(generator);
 }
 
-void crc_reset_to_value(CRCGenerator *gen, uint16_t value)
+void crc_reset_to_value(CRCGenerator *const gen, const uint16_t value)
 {
-	struct CRCGeneratorInternal *generator = (struct CRCGeneratorInternal *)gen;
+	struct CRCGeneratorInternal *const generator = (struct CRCGeneratorInternal *)gen;
 	generator->value = value;
 }
 
-void crc_add_byte(CRCGenerator *gen, uint8_t byte)
+void crc_add_byte(CRCGenerator *const gen, const uint8_t byte)
 {
-	struct CRCGeneratorInternal *generator = (struct CRCGeneratorInternal *)gen;
+	struct CRCGeneratorInternal *const generator = (struct CRCGeneratorInternal *)gen;
 	generator->value = (uint16_t)((generator->value << 8) ^ generator->xor_table[(generator->value >> 8) ^ byte]);
 }
 
-uint16_t crc_get_value(CRCGenerator *gen)
+uint16_t crc_get_value(const CRCGenerator *const gen)
 {
-	struct CRCGeneratorInternal *generator = (struct CRCGeneratorInternal *)gen;
+	const struct CRCGeneratorInternal *const generator = (struct CRCGeneratorInternal *)gen;
 	return generator->value;
 }
