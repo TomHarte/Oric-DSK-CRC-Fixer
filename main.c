@@ -14,6 +14,7 @@
 #include "crcgenerator.h"
 
 static const size_t MFMDISK_track_length = 6250;
+static const size_t MFMDISK_offset_of_first_track = 256;
 
 static void seed_crc_generator(CRCGenerator *generator, uint32_t value)
 {
@@ -69,8 +70,7 @@ int main(int argc, const char * argv[]) {
 		int crcs_found = 0;
 
 		// Seed the file position.
-		long file_offset = 256;
-		fseek(dsk, file_offset, SEEK_SET);
+		fseek(dsk, MFMDISK_offset_of_first_track, SEEK_SET);
 		while(1)
 		{
 			// Attempt to read in the existing track; if we hit feof then that's the end of that, done.
@@ -143,13 +143,12 @@ int main(int argc, const char * argv[]) {
 			// Write back if needed
 			if(crcs_fixed_prior_to_track != crcs_fixed)
 			{
-				fseek(dsk, file_offset, SEEK_SET);
+				fseek(dsk, -MFMDISK_track_length, SEEK_CUR);
 				fwrite(track_image, sizeof(track_image[0]), sizeof(track_image), dsk);
 			}
 
 			// Update metric and file position.
 			tracks_processed++;
-			file_offset += 6400;
 		}
 
 		printf("%s: Completed; %d tracks found, %d CRCs checked, %d fixed\n", argv[argument], tracks_processed, crcs_found, crcs_fixed);
