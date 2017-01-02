@@ -30,129 +30,133 @@ int main(int argc, const char * argv[]) {
 	{
 		const char *app_name = argv[0] + strlen(argv[0]);
 		while(app_name > argv[0] && app_name[0] != '/') app_name--;
-		printf("Usage: %s [name of dsk]\n", &app_name[1]);
+		printf("Usage: %s [name of first dsk] [name of second disk] ...\n", &app_name[1]);
 		return -1;
 	}
-
-	// Sanity check 2: does the first argument identify a file that can be opened for modification?
-	FILE *dsk = fopen(argv[1], "r+");
-	if(!dsk)
-	{
-		printf("Error: couldn't open %s for modification\n", argv[1]);
-		return -2;
-	}
-
-	// Sanity check 3: does the file, now opened, contain the proper magic word?
-	char magic_word[8];
-	const char expected_word[] = "MFM_DISK";
-	fread(magic_word, sizeof(magic_word[0]), sizeof(magic_word), dsk);
-	if(memcmp(magic_word, expected_word, strlen(expected_word)))
-	{
-		fclose(dsk);
-		printf("Error: %s doesn't look like an Oric MFM disk\n", argv[1]);
-		return -2;
-	}
-
-	//
-	// All sanity checks passed.
-	//
-
-	// Prep some metrics.
-	int tracks_processed = 0;
-	int crcs_fixed = 0;
-	int crcs_found = 0;
 
 	// Obtain a CRC generator.
 	CRCGenerator *generator = crc_create(0x1021);
 
-	// Seed the file position.
-	long file_offset = 256;
-	fseek(dsk, file_offset, SEEK_SET);
-	while(1)
+	// Act upon every file presented.
+	for(int argument = 1; argument < argc; argument++)
 	{
-		// Attempt to read in the existing track; if we hit feof then that's the end of that, done.
-		uint8_t track_image[MFMDISK_track_length];
-		int crcs_fixed_prior_to_track = crcs_fixed;
-
-		fread(track_image, sizeof(track_image[0]), sizeof(track_image), dsk);
-		if(feof(dsk)) break;
-
-		// Perform parsing to look for sectors.
-		size_t track_pointer = 0;
-		uint32_t byte_shift_register = 0;
-		uint8_t most_recent_id_mark[4];
-		while(track_pointer < MFMDISK_track_length)
+		// Sanity check 2: does the first argument identify a file that can be opened for modification?
+		FILE *dsk = fopen(argv[argument], "r+");
+		if(!dsk)
 		{
-			byte_shift_register = (byte_shift_register << 8) | track_image[track_pointer];
-			track_pointer++;
-
-			if(byte_shift_register == 0xa1a1a1fe && track_pointer < MFMDISK_track_length - 6)
-			{
-				// Update metric.
-				crcs_found++;
-
-				// Parse an ID mark.
-				memcpy(most_recent_id_mark, &track_image[track_pointer], sizeof(most_recent_id_mark));
-
-				seed_crc_generator(generator, byte_shift_register);
-				for(int c = 0; c < sizeof(most_recent_id_mark); c++) crc_add_byte(generator, most_recent_id_mark[c]);
-
-				uint16_t found_crc = (track_image[track_pointer+4] << 8) | track_image[track_pointer+5];
-				uint16_t intended_crc = crc_get_value(generator);
-				if(intended_crc != found_crc)
-				{
-					// Update metric and CRC.
-					crcs_fixed++;
-					track_image[track_pointer+4] = (intended_crc >> 8);
-					track_image[track_pointer+5] = intended_crc & 0xff;
-					printf("Correcting CRC for ID mark for sector %d, track %d, side %d\n", most_recent_id_mark[2], most_recent_id_mark[0], most_recent_id_mark[1]);
-				}
-
-				track_pointer += 6;
-			}
-			else if(byte_shift_register == 0xa1a1a1fb && track_pointer < MFMDISK_track_length - (128 << most_recent_id_mark[3]))
-			{
-				// Update metric, seed CRC.
-				crcs_found++;
-				seed_crc_generator(generator, byte_shift_register);
-
-				// Parse a sector, per the most recent ID mark.
-				for(int c = 0; c < 128 << most_recent_id_mark[3]; c++)
-				{
-					crc_add_byte(generator, track_image[track_pointer]);
-					track_pointer++;
-				}
-
-				uint16_t found_crc = (track_image[track_pointer] << 8) | track_image[track_pointer+1];
-				uint16_t intended_crc = crc_get_value(generator);
-				if(intended_crc != found_crc)
-				{
-					// Update metric and CRC.
-					crcs_fixed++;
-					track_image[track_pointer] = (intended_crc >> 8);
-					track_image[track_pointer+1] = intended_crc & 0xff;
-					printf("Correcting CRC for data following ID mark for sector %d, track %d, side %d\n", most_recent_id_mark[2], most_recent_id_mark[0], most_recent_id_mark[1]);
-				}
-
-				track_pointer += 2;
-			}
+			printf("%s: Error: couldn't open for modification\n", argv[argument]);
+			continue;
 		}
 
-		// Write back if needed
-		if(crcs_fixed_prior_to_track != crcs_fixed)
+		// Sanity check 3: does the file, now opened, contain the proper magic word?
+		char magic_word[8];
+		const char expected_word[] = "MFM_DISK";
+		fread(magic_word, sizeof(magic_word[0]), sizeof(magic_word), dsk);
+		if(memcmp(magic_word, expected_word, strlen(expected_word)))
 		{
-			fseek(dsk, file_offset, SEEK_SET);
-			fwrite(track_image, sizeof(track_image[0]), sizeof(track_image), dsk);
+			fclose(dsk);
+			printf("%s: Error: doesn't look like an Oric MFM disk\n", argv[argument]);
+			continue;
 		}
 
-		// Update metric and file position.
-		tracks_processed++;
-		file_offset += 6400;
+		//
+		// All sanity checks passed.
+		//
+
+		// Prep some metrics.
+		int tracks_processed = 0;
+		int crcs_fixed = 0;
+		int crcs_found = 0;
+
+		// Seed the file position.
+		long file_offset = 256;
+		fseek(dsk, file_offset, SEEK_SET);
+		while(1)
+		{
+			// Attempt to read in the existing track; if we hit feof then that's the end of that, done.
+			uint8_t track_image[MFMDISK_track_length];
+			int crcs_fixed_prior_to_track = crcs_fixed;
+
+			fread(track_image, sizeof(track_image[0]), sizeof(track_image), dsk);
+			if(feof(dsk)) break;
+
+			// Perform parsing to look for sectors.
+			size_t track_pointer = 0;
+			uint32_t byte_shift_register = 0;
+			uint8_t most_recent_id_mark[4];
+			while(track_pointer < MFMDISK_track_length)
+			{
+				byte_shift_register = (byte_shift_register << 8) | track_image[track_pointer];
+				track_pointer++;
+
+				if(byte_shift_register == 0xa1a1a1fe && track_pointer < MFMDISK_track_length - 6)
+				{
+					// Update metric.
+					crcs_found++;
+
+					// Parse an ID mark.
+					memcpy(most_recent_id_mark, &track_image[track_pointer], sizeof(most_recent_id_mark));
+
+					seed_crc_generator(generator, byte_shift_register);
+					for(int c = 0; c < sizeof(most_recent_id_mark); c++) crc_add_byte(generator, most_recent_id_mark[c]);
+
+					uint16_t found_crc = (track_image[track_pointer+4] << 8) | track_image[track_pointer+5];
+					uint16_t intended_crc = crc_get_value(generator);
+					if(intended_crc != found_crc)
+					{
+						// Update metric and CRC.
+						crcs_fixed++;
+						track_image[track_pointer+4] = (intended_crc >> 8);
+						track_image[track_pointer+5] = intended_crc & 0xff;
+//						printf("Correcting CRC for ID mark for sector %d, track %d, side %d\n", most_recent_id_mark[2], most_recent_id_mark[0], most_recent_id_mark[1]);
+					}
+
+					track_pointer += 6;
+				}
+				else if(byte_shift_register == 0xa1a1a1fb && track_pointer < MFMDISK_track_length - (128 << most_recent_id_mark[3]))
+				{
+					// Update metric, seed CRC.
+					crcs_found++;
+					seed_crc_generator(generator, byte_shift_register);
+
+					// Parse a sector, per the most recent ID mark.
+					for(int c = 0; c < 128 << most_recent_id_mark[3]; c++)
+					{
+						crc_add_byte(generator, track_image[track_pointer]);
+						track_pointer++;
+					}
+
+					uint16_t found_crc = (track_image[track_pointer] << 8) | track_image[track_pointer+1];
+					uint16_t intended_crc = crc_get_value(generator);
+					if(intended_crc != found_crc)
+					{
+						// Update metric and CRC.
+						crcs_fixed++;
+						track_image[track_pointer] = (intended_crc >> 8);
+						track_image[track_pointer+1] = intended_crc & 0xff;
+					}
+
+					track_pointer += 2;
+				}
+			}
+
+			// Write back if needed
+			if(crcs_fixed_prior_to_track != crcs_fixed)
+			{
+				fseek(dsk, file_offset, SEEK_SET);
+				fwrite(track_image, sizeof(track_image[0]), sizeof(track_image), dsk);
+			}
+
+			// Update metric and file position.
+			tracks_processed++;
+			file_offset += 6400;
+		}
+
+		printf("%s: Completed; %d tracks found, %d CRCs checked, %d fixed\n", argv[argument], tracks_processed, crcs_found, crcs_fixed);
+
+		fclose(dsk);
 	}
 
-	printf("Completed; %d tracks found, %d CRCs checked, %d fixed\n", tracks_processed, crcs_found, crcs_fixed);
-
 	crc_destroy(generator);
-	fclose(dsk);
     return 0;
 }
