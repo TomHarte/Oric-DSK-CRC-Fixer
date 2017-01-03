@@ -194,5 +194,5 @@ int main(int argc, const char *argv[]) {
 	}
 
 	crc_destroy(generator);
-    return 0;
+	return 0;
 }
