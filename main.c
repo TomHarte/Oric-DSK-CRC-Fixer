@@ -62,7 +62,8 @@ static void seed_crc_generator(CRCGenerator *generator, uint32_t value)
 	crc_add_byte(generator, value&0xff);
 }
 
-int main(int argc, const char *argv[]) {
+int main(int argc, const char *argv[])
+{
 	// Sanity check 1: did the user provide any arguments?
 	if(argc < 2)
 	{
