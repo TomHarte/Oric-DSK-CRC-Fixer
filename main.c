@@ -18,10 +18,9 @@
 
 	It opens with a 256-byte header, the first eight of which are the ASCII values for MFM_DISK.
 	That's followed by a 32-bit little endian head count, then a 32-bit little endian track count,
-	then a 32-bit little endian geometry type; either '1' that all the tracks for one side are listed
-	contiguously, then all the tracks for the next, etc, or '2' to indicate that all the tracks for one
-	head position are listed contiguously ordered by side, then all the tracks for the next head
-	position, etc.
+	then a 32-bit little endian geometry type: either '1' to indicate that all the tracks for one side
+	are listed contiguously, then all the tracks for the next, etc; or '2' to indicate that all the
+	sides for one track are listed contiguously, then all the sides for the next track, etc.
 
 	For this tool's purposes, merely confirming that the MFM_DISK signature matches is sufficient. It'll
 	then just run for as many tracks as there are, in whatever order they come.
